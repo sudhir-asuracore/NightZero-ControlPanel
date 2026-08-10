@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# NightZero Control Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The Control Panel is the React/TypeScript operations console for NightZero. It displays Agent availability, incident lifecycle progress, RCA evidence, sandbox verification, and the human approval action. It communicates only with the NightZero Agent REST API; it does not clone repositories or manage GitHub pull requests.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From this repository, install dependencies and start the Vite development server:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+VITE_NIGHTZERO_API_URL=http://localhost:8080 npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+In another terminal, start `NightZero-Agent` with `NIGHTZERO_CORS_ORIGIN=http://localhost:5173`. The console polls `/health` and `/api/v1/incidents` every five seconds. Select an incident to view its RCA, diff, and fail-before/pass-after sandbox output.
+
+For a local demo approval, enter a reviewer name and the Agent's demo token, `nightzero-demo`. The token is submitted directly to the Agent API and is never stored by the Control Panel.
+
+## Validation
+
+```bash
+npm test
+npm run build
+npm run lint
+```
+
+## Configuration and safety
+
+`VITE_NIGHTZERO_API_URL` is the only frontend configuration value. Use an HTTPS Agent API URL for a deployed console. Never set GitHub credentials, SSH keys, or a write-capable repository token in this project: GitHub automation belongs exclusively to `NightZero-Agent`.
