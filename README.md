@@ -8,7 +8,8 @@ From this repository, install dependencies and start the Vite development server
 
 ```bash
 npm install
-VITE_NIGHTZERO_API_URL=http://localhost:8080 npm run dev
+cp .env.example .env
+npm run dev
 ```
 
 In another terminal, start `NightZero-Agent` with `NIGHTZERO_CORS_ORIGIN=http://localhost:5173`. The console polls `/health` and `/api/v1/incidents` every five seconds. Select an incident to view its RCA, diff, and fail-before/pass-after sandbox output.
