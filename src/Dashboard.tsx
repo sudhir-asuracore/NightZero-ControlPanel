@@ -120,7 +120,6 @@ export default function Dashboard() {
     } catch (reason) { setDetailError(reason instanceof Error ? reason.message : 'Approval failed') } finally { setApproving(false) }
   }
 
-  const openIncidents = incidents.filter(incident => !terminalStatuses.has(incident.status))
   const totalPages = Math.ceil(totalIncidents / pageSize)
 
   return <div className="console-shell"><aside className="sidebar" aria-label="Control panel navigation"><span className="mark">NZ</span><span className="nav-active">▥</span><span>◫</span><span>⚙</span><b>NIGHTZERO</b></aside><main className="dashboard">
