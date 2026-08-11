@@ -31,6 +31,9 @@ function TestResult({ label, result }: { label: string; result: CommandResult })
 export default function Dashboard() {
   const [health, setHealth] = useState('LOADING')
   const [incidents, setIncidents] = useState<Incident[]>([])
+  const [totalIncidents, setTotalIncidents] = useState(0)
+  const [page, setPage] = useState(0)
+  const pageSize = 10
   const [detail, setDetail] = useState<IncidentDetail | null>(null)
   const [error, setError] = useState('')
   const [detailError, setDetailError] = useState('')
@@ -42,17 +45,29 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [healthResponse, incidentsResponse] = await Promise.all([fetch(`${api}/health`), fetch(`${api}/api/v1/incidents`)])
+        const [healthResponse, incidentsResponse] = await Promise.all([
+          fetch(`${api}/health`),
+          fetch(`${api}/api/v1/incidents?offset=${page * pageSize}&limit=${pageSize}`)
+        ])
         if (!healthResponse.ok || !incidentsResponse.ok) throw new Error('Agent API is unavailable')
         setHealth((await healthResponse.json() as { status: string }).status)
-        setIncidents(await incidentsResponse.json() as Incident[])
+        const data = await incidentsResponse.json() as { incidents: Incident[], total: number }
+        
+        // Handle backwards compatibility if API hasn't updated yet
+        if (Array.isArray(data)) {
+          setIncidents(data)
+          setTotalIncidents(data.length)
+        } else {
+          setIncidents(data.incidents || [])
+          setTotalIncidents(data.total || 0)
+        }
         setError('')
       } catch (reason) { setError(reason instanceof Error ? reason.message : 'Agent API is unavailable') }
     }
     void load()
     const interval = window.setInterval(() => void load(), 5000)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [page])
 
   const simulateOutage = async () => {
     setSimulating(true)
@@ -62,7 +77,9 @@ export default function Dashboard() {
       if (!response.ok) throw new Error('Failed to simulate outage')
       const newDetail = await response.json() as IncidentDetail
       setDetail(newDetail)
-      setIncidents(current => [newDetail.context, ...current])
+      // Switch back to page 0 when simulating new incident to see it
+      setPage(0)
+      setIncidents(current => [newDetail.context, ...current].slice(0, pageSize))
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Simulation failed') } finally { setSimulating(false) }
   }
 
@@ -104,11 +121,21 @@ export default function Dashboard() {
   }
 
   const openIncidents = incidents.filter(incident => !terminalStatuses.has(incident.status))
+  const totalPages = Math.ceil(totalIncidents / pageSize)
 
   return <div className="console-shell"><aside className="sidebar" aria-label="Control panel navigation"><span className="mark">NZ</span><span className="nav-active">▥</span><span>◫</span><span>⚙</span><b>NIGHTZERO</b></aside><main className="dashboard">
     <header><p className="eyebrow">CONSOLE <span>›</span> INCIDENTS</p><div className="agent-status"><i className={health === 'IDLE' ? 'idle' : 'active'} /> AGENT: <strong>{health}</strong></div></header>
-    <section className="hero"><div><p className="eyebrow">AUTONOMOUS INCIDENT RESPONSE</p><h1>OPERATIONS</h1></div><div className="metric"><span>OPEN INCIDENTS</span><strong>{openIncidents.length}</strong></div><div className="metric"><span>DEMO TRIGGER</span><button className="simulate-btn" disabled={simulating} onClick={() => void simulateOutage()}>{simulating ? '⚡ SIMULATING…' : '⚡ SIMULATE OUTAGE'}</button></div></section>
-    {error && <p className="error" role="alert">{error}</p>}<section className="incident-list"><div className="section-heading"><h2>DETECTED INCIDENTS</h2><span>REFRESH: 5S</span></div>{incidents.length === 0 ? <p className="empty">No incidents detected. The Agent is standing by.</p> : <div className="incident-table">{incidents.map(item => <button className="incident-row" onClick={() => void selectIncident(item)} key={item.incident_id}><span className={`severity ${item.severity.toLowerCase()}`}>{item.severity}</span><span className="incident-title">{item.title}</span><span>{item.service}</span><span className="status">{item.status.replaceAll('_', ' ')}</span><span>›</span></button>)}</div>}</section>
+    <section className="hero"><div><p className="eyebrow">AUTONOMOUS INCIDENT RESPONSE</p><h1>OPERATIONS</h1></div><div className="metric"><span>OPEN INCIDENTS</span><strong>{totalIncidents}</strong></div><div className="metric"><span>DEMO TRIGGER</span><button className="simulate-btn" disabled={simulating} onClick={() => void simulateOutage()}>{simulating ? '⚡ SIMULATING…' : '⚡ SIMULATE OUTAGE'}</button></div></section>
+    {error && <p className="error" role="alert">{error}</p>}<section className="incident-list"><div className="section-heading"><h2>DETECTED INCIDENTS</h2><span>REFRESH: 5S</span></div>{incidents.length === 0 ? <p className="empty">No incidents detected. The Agent is standing by.</p> : <div className="incident-table">{incidents.map(item => <button className="incident-row" onClick={() => void selectIncident(item)} key={item.incident_id}><span className={`severity ${item.severity.toLowerCase()}`}>{item.severity}</span><span className="incident-title">{item.title}</span><span>{item.service}</span><span className="status">{item.status.replaceAll('_', ' ')}</span><span>›</span></button>)}</div>}
+      
+      {totalPages > 1 && (
+        <div className="pagination" style={{ display: 'flex', gap: '1rem', marginTop: '1rem', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '0.25rem 0.5rem', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: page === 0 ? 'not-allowed' : 'pointer' }}>PREV</button>
+          <span style={{ fontSize: '0.875rem' }}>PAGE {page + 1} OF {totalPages}</span>
+          <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '0.25rem 0.5rem', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer' }}>NEXT</button>
+        </div>
+      )}
+    </section>
     {detailError && <p className="error" role="alert">{detailError}</p>}{detail && <section className="detail-panel"><div className="section-heading"><div><p className="eyebrow">INCIDENT {detail.context.incident_id}</p><h2>{detail.context.title}</h2></div><button className="close" onClick={() => setDetail(null)}>CLOSE ×</button></div><StageRail status={detail.context.status} />{detail.rca && <div className="detail-grid"><article><h3>ROOT CAUSE ANALYSIS</h3><p>{detail.rca.root_cause}</p><dl><dt>CONFIDENCE</dt><dd>{Math.round(detail.rca.confidence * 100)}%</dd><dt>CULPRIT COMMIT</dt><dd>{detail.rca.culprit_commit}</dd><dt>PATCH</dt><dd>{detail.rca.proposed_patch}</dd></dl></article><article><h3>EVIDENCE</h3>{detail.rca.evidence.map(evidence => <div className="evidence" key={`${evidence.kind}-${evidence.source}`}><span>{evidence.kind}</span><b>{evidence.source}</b><p>{evidence.detail}</p></div>)}</article></div>}{detail.verification && <><h3>ISOLATED SANDBOX VERIFICATION</h3><p className="muted">{detail.verification.branch_name} · {detail.verification.file_path} · {detail.verification.staging_status}</p><div className="test-grid"><TestResult label="BEFORE PATCH" result={detail.verification.before} /><TestResult label="AFTER PATCH" result={detail.verification.after} /></div><pre className="diff">{detail.verification.diff}</pre></>}<section className="approval"><h3>HUMAN APPROVAL GATE</h3><p>{detail.context.issue_url && <a href={detail.context.issue_url} target="_blank" rel="noreferrer">VIEW ISSUE</a>}{detail.approval?.pr_url && <> · <a href={detail.approval.pr_url} target="_blank" rel="noreferrer">VIEW DRAFT PR #{detail.approval.pr_number}</a></>}</p>{detail.context.status === 'APPROVED' ? <p className="approved">APPROVED BY {detail.approval?.actor ?? 'REVIEWER'}</p> : <>{detail.context.status === 'PR_CREATION_FAILED' && <p className="error">PR CREATION FAILED: {detail.approval?.failure ?? 'Retry approval to resume.'}</p>}<label>REVIEWER<input value={reviewer} onChange={event => setReviewer(event.target.value)} /></label><label>APPROVAL TOKEN<input type="password" value={token} onChange={event => setToken(event.target.value)} /></label><button className="approve" disabled={!reviewer || !token || approving} onClick={() => void approve()}>{approving ? 'AUTHORIZING…' : detail.context.status === 'PR_CREATION_FAILED' ? 'RETRY PR CREATION' : 'APPROVE PROPOSAL'}</button></>}</section></section>}
   </main></div>
 }
