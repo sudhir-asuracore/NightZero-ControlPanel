@@ -12,7 +12,6 @@ type IncidentDetail = {
 
 const api = import.meta.env.VITE_NIGHTZERO_API_URL ?? 'http://localhost:8080'
 const stages = ['INGESTING', 'RCA', 'PATCHING', 'SANDBOX_TESTING', 'AWAITING_APPROVAL', 'APPROVED']
-const terminalStatuses = new Set(['APPROVED'])
 
 function StageRail({ status }: { status: string }) {
   const active = status === 'IDLE' ? -1 : Math.max(stages.indexOf(status), status === 'STAGING_VERIFIED' ? 4 : 0)
