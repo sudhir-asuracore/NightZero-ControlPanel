@@ -121,18 +121,21 @@ export default function Dashboard() {
     } catch (reason) { setDetailError(reason instanceof Error ? reason.message : 'Approval failed') } finally { setApproving(false) }
   }
 
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'settings'>('dashboard')
   const totalPages = Math.ceil(totalIncidents / pageSize)
 
   return <div className="console-shell"><aside className="sidebar" aria-label="Control panel navigation">
         <span className="mark">NZ</span>
-        <span className="nav-active" title="Dashboard">
+        <span className={currentTab === 'dashboard' ? 'nav-active' : 'nav-inactive'} title="Dashboard" onClick={() => setCurrentTab('dashboard')}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         </span>
-        <span className="nav-inactive" title="Settings">
+        <span className={currentTab === 'settings' ? 'nav-active' : 'nav-inactive'} title="Settings" onClick={() => setCurrentTab('settings')}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
         </span>
         <b>NIGHTZERO</b>
       </aside><main className="dashboard">
+    {currentTab === 'dashboard' ? (
+      <>
     <header><p className="eyebrow">CONSOLE <span>›</span> INCIDENTS</p><div className="agent-status"><i className={health === 'IDLE' ? 'idle' : 'active'} /> AGENT: <strong>{health}</strong></div></header>
     <section className="hero"><div><p className="eyebrow">AUTONOMOUS INCIDENT RESPONSE</p><h1>OPERATIONS</h1></div><div className="metric"><span>OPEN INCIDENTS</span><strong>{totalIncidents}</strong></div><div className="metric"><span>DEMO TRIGGER</span><button className="simulate-btn" disabled={simulating} onClick={() => void simulateOutage()}>{simulating ? '⚡ SIMULATING…' : '⚡ SIMULATE OUTAGE'}</button></div></section>
     {simulationBanner && <p className="approved" style={{ padding: '16px 24px', border: '1px solid #00d795', margin: '24px 0 0 0', backgroundColor: '#0b1612' }} role="alert">{simulationBanner}</p>}
@@ -146,5 +149,33 @@ export default function Dashboard() {
         </div>
       )}
     </section>
+      </>
+    ) : (
+      <section className="settings-panel" style={{ paddingTop: '40px' }}>
+        <h2 style={{ color: 'white', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px', fontSize: '20px' }}>Settings</h2>
+        <div style={{ border: '1px solid #222', padding: '32px', backgroundColor: '#111' }}>
+          <h3 style={{ color: '#ef4444', marginBottom: '8px' }}>Danger Zone</h3>
+          <p style={{ color: '#94a3b8', marginBottom: '24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Permanently clear all existing incidents and history from the database.</p>
+          <button 
+            className="simulate-btn"
+            style={{ backgroundColor: 'rgba(220, 38, 38, 0.2)' }}
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to delete all incidents? This action cannot be undone.')) {
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/incidents`, { method: 'DELETE' })
+                  if (!res.ok) throw new Error('Failed to delete incidents')
+                  setCurrentTab('dashboard')
+                  fetchIncidents(0)
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'Error clearing incidents')
+                }
+              }
+            }}
+          >
+            DELETE ALL INCIDENTS
+          </button>
+        </div>
+      </section>
+    )}
   </main></div>
 }
