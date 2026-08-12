@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [token, setToken] = useState('nightzero-demo')
   const [approving, setApproving] = useState(false)
   const [simulating, setSimulating] = useState(false)
+  const [simulationBanner, setSimulationBanner] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -74,11 +75,9 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${api}/api/v1/simulate-incident`, { method: 'POST' })
       if (!response.ok) throw new Error('Failed to simulate outage')
-      const newDetail = await response.json() as IncidentDetail
-      setDetail(newDetail)
-      // Switch back to page 0 when simulating new incident to see it
-      setPage(0)
-      setIncidents(current => [newDetail.context, ...current].slice(0, pageSize))
+      const result = await response.json() as { status: string }
+      setSimulationBanner(result.status || 'Deploying simulated outage. A real incident will trigger shortly.')
+      setTimeout(() => setSimulationBanner(''), 10000)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Simulation failed') } finally { setSimulating(false) }
   }
 
@@ -127,6 +126,7 @@ export default function Dashboard() {
   return <div className="console-shell"><aside className="sidebar" aria-label="Control panel navigation"><span className="mark">NZ</span><span className="nav-active">▥</span><span>◫</span><span>⚙</span><b>NIGHTZERO</b></aside><main className="dashboard">
     <header><p className="eyebrow">CONSOLE <span>›</span> INCIDENTS</p><div className="agent-status"><i className={health === 'IDLE' ? 'idle' : 'active'} /> AGENT: <strong>{health}</strong></div></header>
     <section className="hero"><div><p className="eyebrow">AUTONOMOUS INCIDENT RESPONSE</p><h1>OPERATIONS</h1></div><div className="metric"><span>OPEN INCIDENTS</span><strong>{totalIncidents}</strong></div><div className="metric"><span>DEMO TRIGGER</span><button className="simulate-btn" disabled={simulating} onClick={() => void simulateOutage()}>{simulating ? '⚡ SIMULATING…' : '⚡ SIMULATE OUTAGE'}</button></div></section>
+    {simulationBanner && <p className="approved" style={{ padding: '16px 24px', border: '1px solid #00d795', margin: '24px 0 0 0', backgroundColor: '#0b1612' }} role="alert">{simulationBanner}</p>}
     {error && <p className="error" role="alert">{error}</p>}<section className="incident-list"><div className="section-heading"><h2>DETECTED INCIDENTS</h2><span>REFRESH: 5S</span></div>{incidents.length === 0 ? <p className="empty">No incidents detected. The Agent is standing by.</p> : <div className="incident-table">{incidents.map(item => <div key={item.incident_id}><button className="incident-row" onClick={() => void selectIncident(item)}><span className={`severity ${item.severity.toLowerCase()}`}>{item.severity}</span><span className="incident-title">{item.title}</span><span>{item.service}</span><span className="status">{item.status.replaceAll('_', ' ')}</span><span>{detail?.context.incident_id === item.incident_id ? '⌄' : '›'}</span></button>{detail?.context.incident_id === item.incident_id && <section className="detail-panel" style={{ marginTop: 0, borderTop: 0, paddingBottom: '30px', borderBottom: '1px solid #1d2227' }}>{detailError && <p className="error" role="alert" style={{marginTop: 0, marginBottom: '24px'}}>{detailError}</p>}<div className="section-heading"><div><p className="eyebrow">INCIDENT {detail.context.incident_id}</p><h2>{detail.context.title}</h2></div><button className="close" onClick={() => setDetail(null)}>CLOSE ×</button></div><StageRail status={detail.context.status} />{detail.rca && <div className="detail-grid"><article><h3>ROOT CAUSE ANALYSIS</h3><p>{detail.rca.root_cause}</p><dl><dt>CONFIDENCE</dt><dd>{Math.round(detail.rca.confidence * 100)}%</dd><dt>CULPRIT COMMIT</dt><dd>{detail.rca.culprit_commit}</dd><dt>PATCH</dt><dd>{detail.rca.proposed_patch}</dd></dl></article><article><h3>EVIDENCE</h3>{detail.rca.evidence.map(evidence => <div className="evidence" key={`${evidence.kind}-${evidence.source}`}><span>{evidence.kind}</span><b>{evidence.source}</b><p>{evidence.detail}</p></div>)}</article></div>}{detail.verification && <><h3>ISOLATED SANDBOX VERIFICATION</h3><p className="muted">{detail.verification.branch_name} · {detail.verification.file_path} · {detail.verification.staging_status}</p><div className="test-grid"><TestResult label="BEFORE PATCH" result={detail.verification.before} /><TestResult label="AFTER PATCH" result={detail.verification.after} /></div><pre className="diff">{detail.verification.diff}</pre></>}<section className="approval"><h3>HUMAN APPROVAL GATE</h3><p>{detail.context.issue_url && <a href={detail.context.issue_url} target="_blank" rel="noreferrer">VIEW ISSUE</a>}{detail.approval?.pr_url && <> · <a href={detail.approval.pr_url} target="_blank" rel="noreferrer">VIEW DRAFT PR #{detail.approval.pr_number}</a></>}</p>{detail.context.status === 'APPROVED' ? <p className="approved">APPROVED BY {detail.approval?.actor ?? 'REVIEWER'}</p> : <>{detail.context.status === 'PR_CREATION_FAILED' && <p className="error">PR CREATION FAILED: {detail.approval?.failure ?? 'Retry approval to resume.'}</p>}<label>REVIEWER<input value={reviewer} onChange={event => setReviewer(event.target.value)} /></label><label>APPROVAL TOKEN<input type="password" value={token} onChange={event => setToken(event.target.value)} /></label><button className="approve" disabled={!reviewer || !token || approving} onClick={() => void approve()}>{approving ? 'AUTHORIZING…' : detail.context.status === 'PR_CREATION_FAILED' ? 'RETRY PR CREATION' : 'APPROVE PROPOSAL'}</button></>}</section></section>}</div>)}</div>}
       
       {totalPages > 1 && (
