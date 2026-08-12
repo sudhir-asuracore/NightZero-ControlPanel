@@ -162,10 +162,12 @@ export default function Dashboard() {
             onClick={async () => {
               if (window.confirm('Are you sure you want to delete all incidents? This action cannot be undone.')) {
                 try {
-                  const res = await fetch(`${API_BASE}/api/v1/incidents`, { method: 'DELETE' })
+                  const res = await fetch(`${api}/api/v1/incidents`, { method: 'DELETE' })
                   if (!res.ok) throw new Error('Failed to delete incidents')
                   setCurrentTab('dashboard')
-                  fetchIncidents(0)
+                  setIncidents([])
+                  setTotalIncidents(0)
+                  setPage(0)
                 } catch (err) {
                   alert(err instanceof Error ? err.message : 'Error clearing incidents')
                 }
