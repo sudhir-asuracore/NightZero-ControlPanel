@@ -43,16 +43,17 @@ const detail = {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn((url: string, options?: RequestInit) => {
-      if (url.endsWith('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
-      if (url.endsWith('/api/v1/incidents')) return Promise.resolve(new Response(JSON.stringify([incident, approvedIncident])))
-      if (url.endsWith('/approve')) {
+      if (url.includes('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
+      if (url.includes('/approve')) {
         expect(options?.method).toBe('POST')
         return Promise.resolve(new Response(JSON.stringify({
           ...detail,
           context: { ...incident, status: 'APPROVED' },
-          approval: { actor: 'on-call' },
+          approval: { actor: 'on-call', pr_number: 17, pr_url: 'https://github.com/example/repo/pull/17' },
         })))
       }
+      if (url.includes('/api/v1/incidents/')) return Promise.resolve(new Response(JSON.stringify(detail)))
+      if (url.includes('/api/v1/incidents')) return Promise.resolve(new Response(JSON.stringify([incident, approvedIncident])))
       return Promise.resolve(new Response(JSON.stringify(detail)))
     }))
   })
@@ -71,9 +72,9 @@ describe('Dashboard', () => {
 
     fireEvent.change(screen.getByLabelText(/reviewer/i), { target: { value: 'on-call' } })
     fireEvent.change(screen.getByLabelText(/approval token/i), { target: { value: 'nightzero-demo' } })
-    fireEvent.click(screen.getByRole('button', { name: /approve proposal/i }))
+    fireEvent.click(screen.getByRole('button', { name: /authorize & create draft pr/i }))
 
-    await waitFor(() => expect(screen.getByText(/approved by on-call/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/approved \(pr created\) by on-call/i)).toBeInTheDocument())
     await waitFor(() => expect(screen.getByText('0', { selector: '.metric strong' })).toBeInTheDocument())
   })
 
@@ -90,8 +91,9 @@ describe('Dashboard', () => {
       approval: { actor: 'on-call', pr_number: 17, pr_url: 'https://github.com/example/repo/pull/17', failure: 'comment unavailable' },
     }
     vi.stubGlobal('fetch', vi.fn((url: string) => {
-      if (url.endsWith('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
-      if (url.endsWith('/api/v1/incidents')) return Promise.resolve(new Response(JSON.stringify([failedDetail.context])))
+      if (url.includes('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
+      if (url.includes('/api/v1/incidents/')) return Promise.resolve(new Response(JSON.stringify(failedDetail)))
+      if (url.includes('/api/v1/incidents')) return Promise.resolve(new Response(JSON.stringify([failedDetail.context])))
       return Promise.resolve(new Response(JSON.stringify(failedDetail)))
     }))
     render(<Dashboard />)
@@ -99,6 +101,6 @@ describe('Dashboard', () => {
     expect(await screen.findByRole('link', { name: /view issue/i })).toHaveAttribute('href', failedDetail.context.issue_url)
     expect(screen.getByRole('link', { name: /view draft pr #17/i })).toHaveAttribute('href', failedDetail.approval.pr_url)
     expect(screen.getByText(/pr creation failed: comment unavailable/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /retry pr creation/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /retry draft pr creation/i })).toBeInTheDocument()
   })
 })
