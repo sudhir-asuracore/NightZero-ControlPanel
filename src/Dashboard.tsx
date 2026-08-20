@@ -35,6 +35,7 @@ function TestResult({ label, result }: { label: string; result: CommandResult })
 
 export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getStoredUser())
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'settings'>('dashboard')
   const [health, setHealth] = useState('LOADING')
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [totalIncidents, setTotalIncidents] = useState(0)
@@ -46,6 +47,9 @@ export default function Dashboard() {
   const [approving, setApproving] = useState(false)
   const [simulating, setSimulating] = useState(false)
   const [simulationBanner, setSimulationBanner] = useState('')
+
+  const openCount = incidents.filter(i => i.status !== 'APPROVED').length
+  const totalPages = Math.ceil(totalIncidents / pageSize)
 
   useEffect(() => {
     return subscribeToAuth(setCurrentUser)
@@ -135,10 +139,6 @@ export default function Dashboard() {
   if (!currentUser) {
     return <Login onLoginSuccess={setCurrentUser} />
   }
-
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'settings'>('dashboard')
-  const openCount = incidents.filter(i => i.status !== 'APPROVED').length
-  const totalPages = Math.ceil(totalIncidents / pageSize)
 
   return <div className="console-shell"><aside className="sidebar" aria-label="Control panel navigation">
         <span className="mark">NZ</span>
