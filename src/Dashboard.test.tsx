@@ -42,6 +42,10 @@ const detail = {
 
 describe('Dashboard', () => {
   beforeEach(() => {
+    localStorage.setItem(
+      'nightzero_auth_user',
+      JSON.stringify({ email: 'on-call', name: 'on-call', token: 'nightzero-demo', mode: 'judge' })
+    )
     vi.stubGlobal('fetch', vi.fn((url: string, options?: RequestInit) => {
       if (url.includes('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
       if (url.includes('/approve')) {
@@ -58,9 +62,9 @@ describe('Dashboard', () => {
     }))
   })
 
-  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals() })
 
-  it('shows incident verification detail and lets a reviewer approve it', async () => {
+  it('shows incident verification detail and lets an authenticated reviewer approve it', async () => {
     render(<Dashboard />)
     await screen.findAllByRole('button', { name: /checkout totals/i })
     expect(screen.getByText('1', { selector: '.metric strong' })).toBeInTheDocument()
@@ -70,8 +74,6 @@ describe('Dashboard', () => {
     expect(screen.getByText('FAIL', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('OK')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/reviewer/i), { target: { value: 'on-call' } })
-    fireEvent.change(screen.getByLabelText(/approval token/i), { target: { value: 'nightzero-demo' } })
     fireEvent.click(screen.getByRole('button', { name: /authorize & create draft pr/i }))
 
     await waitFor(() => expect(screen.getByText(/approved \(pr created\) by on-call/i)).toBeInTheDocument())
@@ -102,5 +104,13 @@ describe('Dashboard', () => {
     expect(screen.getByRole('link', { name: /view draft pr #17/i })).toHaveAttribute('href', failedDetail.approval.pr_url)
     expect(screen.getByText(/pr creation failed: comment unavailable/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /retry draft pr creation/i })).toBeInTheDocument()
+  })
+
+  it('renders login security checkpoint when unauthenticated', async () => {
+    localStorage.clear()
+    render(<Dashboard />)
+    expect(screen.getByText(/security checkpoint/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in as judge/i })).toBeInTheDocument()
   })
 })
