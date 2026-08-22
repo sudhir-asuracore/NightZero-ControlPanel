@@ -60,6 +60,8 @@ export default function Dashboard() {
   const [approving, setApproving] = useState(false)
   const [simulating, setSimulating] = useState(false)
   const [simulationBanner, setSimulationBanner] = useState('')
+  const [deterministicMode, setDeterministicMode] = useState<boolean>(true)
+  const [savingSettings, setSavingSettings] = useState<boolean>(false)
 
   const openCount = incidents.filter(i => i.status !== 'APPROVED' && i.status !== 'RESOLVED').length
   const totalPages = Math.ceil(totalIncidents / pageSize)
@@ -67,6 +69,18 @@ export default function Dashboard() {
   useEffect(() => {
     return subscribeToAuth(setCurrentUser)
   }, [])
+
+  useEffect(() => {
+    if (!currentUser) return
+    fetch(`${api}/api/v1/settings`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && typeof data.deterministic_mode === 'boolean') {
+          setDeterministicMode(data.deterministic_mode)
+        }
+      })
+      .catch(() => {})
+  }, [currentUser, currentTab])
 
   useEffect(() => {
     if (!currentUser) return
@@ -149,6 +163,25 @@ export default function Dashboard() {
     setDetail(null)
   }
 
+  const toggleDeterministicMode = async (newValue: boolean) => {
+    setSavingSettings(true)
+    try {
+      const res = await fetch(`${api}/api/v1/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deterministic_mode: newValue }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDeterministicMode(data.deterministic_mode)
+      }
+    } catch (err) {
+      console.error('Failed to update settings', err)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   if (!currentUser) {
     return <Login onLoginSuccess={setCurrentUser} />
   }
@@ -187,6 +220,54 @@ export default function Dashboard() {
     ) : (
       <section className="settings-panel" style={{ paddingTop: '40px' }}>
         <h2 style={{ color: 'white', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px', fontSize: '20px' }}>Settings</h2>
+        
+        <div style={{ border: '1px solid #222', padding: '32px', backgroundColor: '#111', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ maxWidth: '650px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <h3 style={{ color: '#ffffff', margin: 0, fontSize: '14px' }}>AI RCA & Remediation Engine</h3>
+                <span style={{ 
+                  fontSize: '10px', 
+                  fontWeight: 'bold', 
+                  padding: '3px 8px', 
+                  borderRadius: '4px',
+                  letterSpacing: '0.05em',
+                  backgroundColor: deterministicMode ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                  color: deterministicMode ? '#60a5fa' : '#34d399',
+                  border: `1px solid ${deterministicMode ? 'rgba(59, 130, 246, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`
+                }}>
+                  {deterministicMode ? '● DETERMINISTIC DEMO MODE' : '● LIVE GEMINI 2.5 AI MODE'}
+                </span>
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.6', margin: 0 }}>
+                {deterministicMode ? (
+                  <>
+                    <strong style={{ color: '#e2e8f0' }}>Deterministic Mode (ON):</strong> Uses pre-analyzed scenario catalog for instant demo execution and multi-service incident simulations with verified sandboxes.
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ color: '#e2e8f0' }}>Live Gemini AI Mode (OFF):</strong> Invokes Google Gemini 2.5 Flash / Google ADK in real-time to analyze failure logs, inspect repository source code, dynamically synthesize root cause analysis (RCA), and generate custom code patches verified in isolated subprocesses.
+                  </>
+                )}
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none', background: '#1c1c1c', padding: '10px 16px', border: '1px solid #333', borderRadius: '4px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={deterministicMode}
+                  disabled={savingSettings}
+                  onChange={(e) => void toggleDeterministicMode(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#dc2626' }}
+                />
+                <span style={{ marginLeft: '10px', color: '#cbd5e1', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {savingSettings ? 'SAVING…' : deterministicMode ? 'DETERMINISTIC: ON' : 'DETERMINISTIC: OFF (LIVE AI)'}
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div style={{ border: '1px solid #222', padding: '32px', backgroundColor: '#111' }}>
           <h3 style={{ color: '#ef4444', marginBottom: '8px' }}>Danger Zone</h3>
           <p style={{ color: '#94a3b8', marginBottom: '24px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Permanently clear all existing incidents and history from the database.</p>
