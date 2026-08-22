@@ -113,4 +113,23 @@ describe('Dashboard', () => {
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in as judge/i })).toBeInTheDocument()
   })
+
+  it('renders resolved status and merged PR link when PR is merged', async () => {
+    const resolvedDetail = {
+      ...detail,
+      context: { ...incident, status: 'RESOLVED' },
+      approval: { actor: 'sidigrid', pr_number: 18, pr_url: 'https://github.com/example/repo/pull/18' },
+    }
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.includes('/health')) return Promise.resolve(new Response(JSON.stringify({ status: 'IDLE' })))
+      if (url.includes('/api/v1/incidents/')) return Promise.resolve(new Response(JSON.stringify(resolvedDetail)))
+      if (url.includes('/api/v1/incidents')) return Promise.resolve(new Response(JSON.stringify([resolvedDetail.context])))
+      return Promise.resolve(new Response(JSON.stringify(resolvedDetail)))
+    }))
+    render(<Dashboard />)
+    expect(screen.getByText('0', { selector: '.metric strong' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /checkout totals/i }))
+    expect(await screen.findByText(/resolved \(pull request merged on github\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view merged pr #18/i })).toHaveAttribute('href', resolvedDetail.approval.pr_url)
+  })
 })
