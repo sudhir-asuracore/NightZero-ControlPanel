@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { type AuthUser, getStoredUser, logout, subscribeToAuth } from './firebase'
+import { type AuthUser, getStoredUser, getValidToken, logout, subscribeToAuth } from './firebase'
 import Login from './Login'
 
 type Incident = {
@@ -448,7 +448,7 @@ export default function Dashboard() {
     setApproving(true); setDetailError('')
     try {
       const actor = currentUser?.email || 'reviewer'
-      const token = currentUser?.token || 'nightzero-demo'
+      const token = await getValidToken()
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 

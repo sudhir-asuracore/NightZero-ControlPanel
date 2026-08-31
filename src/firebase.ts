@@ -36,6 +36,25 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
+export async function getValidToken(): Promise<string> {
+  const fbUser = auth.currentUser
+  if (fbUser) {
+    try {
+      const freshToken = await fbUser.getIdToken(/* forceRefresh */ true)
+      const stored = getStoredUser()
+      if (stored) {
+        stored.token = freshToken
+        localStorage.setItem('nightzero_auth_user', JSON.stringify(stored))
+      }
+      return freshToken
+    } catch (err) {
+      console.warn('Failed to refresh Firebase ID token:', err)
+    }
+  }
+  const stored = getStoredUser()
+  return stored?.token || 'nightzero-demo'
+}
+
 export async function loginWithGoogle(): Promise<AuthUser> {
   const result = await signInWithPopup(auth, googleProvider)
   const token = await result.user.getIdToken()
