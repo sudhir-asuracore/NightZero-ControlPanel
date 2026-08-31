@@ -1037,38 +1037,49 @@ export default function Dashboard() {
                       ⚠️ Why Existing CI/CD Tests Missed This Defect
                     </h4>
                     <p style={{ color: '#e2e8f0', fontSize: '12px', lineHeight: '1.6', margin: '0 0 12px 0' }}>
-                      {detail.rca?.test_gap_analysis?.why_tests_missed ||
-                        'Existing test suites only asserted round dollar amounts ($10.00, $20.00). No parameterized boundary test existed for fractional cent remainders ($12.34, $99.99).'}
+                      {detail.rca?.test_gap_analysis?.why_tests_missed || 'Not applicable for this incident.'}
                     </p>
                     <div style={{ background: '#1a1412', border: '1px solid #7c2d12', padding: '10px 14px', borderRadius: '4px', fontSize: '11px', color: '#fdba74' }}>
                       <strong>Blindspot Summary: </strong>
-                      {detail.rca?.test_gap_analysis?.blindspot_summary ||
-                        'Missing boundary assertions for decimal cents during currency formatting in checkout pipeline.'}
+                      {detail.rca?.test_gap_analysis?.blindspot_summary || 'Not applicable for this incident.'}
                     </div>
                   </div>
 
                   <div className="prevention-box">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <h4 style={{ margin: 0, fontSize: '12px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         🛡️ Recommended Preventative Test Suite
                       </h4>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const code = detail.rca?.test_gap_analysis?.recommended_test_code || "def test_preserves_cents(self):\n    self.assertEqual('$12.34', format_total(1234))"
-                          void navigator.clipboard.writeText(code)
-                          setCopiedTest(true)
-                          setTimeout(() => setCopiedTest(false), 2000)
-                        }}
-                        style={{ background: '#1c1c1c', border: '1px solid #333', color: '#38bdf8', padding: '4px 10px', fontSize: '10px', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}
-                      >
-                        {copiedTest ? '✔ COPIED' : 'COPY TEST CODE'}
-                      </button>
+                      {detail.rca?.test_gap_analysis?.recommended_test_code &&
+                       detail.rca.test_gap_analysis.recommended_test_code.trim() !== '' &&
+                       !detail.rca.test_gap_analysis.recommended_test_code.includes('"""Prevent regressions."""\n    pass') &&
+                       !detail.rca.test_gap_analysis.recommended_test_code.includes('# Auto-synthesized test gap coverage\n    pass') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const code = detail.rca?.test_gap_analysis?.recommended_test_code || ''
+                            void navigator.clipboard.writeText(code)
+                            setCopiedTest(true)
+                            setTimeout(() => setCopiedTest(false), 2000)
+                          }}
+                          style={{ background: '#1c1c1c', border: '1px solid #333', color: '#38bdf8', padding: '4px 10px', fontSize: '10px', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {copiedTest ? '✔ COPIED' : 'COPY TEST CODE'}
+                        </button>
+                      )}
                     </div>
-                    <pre className="prevention-code">
-                      {detail.rca?.test_gap_analysis?.recommended_test_code ||
-                        'def test_preserves_cents_and_fractional_totals(self) -> None:\n    self.assertEqual("$12.34", format_total(1234))\n    self.assertEqual("$0.99", format_total(99))\n    self.assertEqual("$100.00", format_total(10000))'}
-                    </pre>
+                    {(!detail.rca?.test_gap_analysis?.recommended_test_code ||
+                      detail.rca.test_gap_analysis.recommended_test_code.trim() === '' ||
+                      detail.rca.test_gap_analysis.recommended_test_code.includes('"""Prevent regressions."""\n    pass') ||
+                      detail.rca.test_gap_analysis.recommended_test_code.includes('# Auto-synthesized test gap coverage\n    pass')) ? (
+                      <div style={{ color: '#94a3b8', fontStyle: 'italic', padding: '12px 14px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '4px', fontSize: '12px' }}>
+                        Not applicable for this incident.
+                      </div>
+                    ) : (
+                      <pre className="prevention-code">
+                        {detail.rca.test_gap_analysis.recommended_test_code}
+                      </pre>
+                    )}
                   </div>
                 </div>
               )}
